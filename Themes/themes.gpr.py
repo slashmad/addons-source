@@ -28,10 +28,10 @@ register(
     id="ThemesPrefs",
     name=_("Theme preferences"),
     description=_(
-        "An addition to Preferences for simple Theme and Font"
-        " adjustment.  Especially useful for Windows users."
+        "An addition to Preferences for Theme, Dark mode (Auto/Dark/Light),"
+        " and Font adjustment."
     ),
-    version = '0.0.16',
+    version="0.0.17",
     gramps_target_version="6.0",
     fname="themes_load.py",
     authors=["Paul Culley"],

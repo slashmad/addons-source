@@ -2,6 +2,7 @@
 # Gramps - a GTK+/GNOME based genealogy program
 #
 # Copyright (C) 2019       Paul Culley <paulr2787_at_gmail.com>
+# Copyright (C) 2026       stolpee
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,66 +18,85 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-""" Themes
-This module implements the Preferences Colors/Themes load patches.
-"""
-import sys
+"""Loader for Themes preferences extension."""
+
 import os
+import sys
+
+from gi.repository import GLib
+
+
+def _bool_from_value(value, default=False):
+    if isinstance(value, bool):
+        return value
+    if value is None or value == "":
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def load_on_reg(dbstate, uistate, plugin):
-    """
-    Runs when plugin is registered.
-    """
-    if uistate:
-        # It is necessary to avoid load GUI elements when run under CLI mode.
-        # So we just don't load it at all.
-        # Monkey patch my version of Prefs into the system
-        from gi.repository.Gtk import (Settings, ToolbarStyle, CssProvider,
-                                       StyleContext,
-                                       STYLE_PROVIDER_PRIORITY_APPLICATION)
-        from gi.repository.Gdk import Screen
-        from gramps.gui.configure import GrampsPreferences
-        from gramps.gen.config import config
-        sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-        from themes import MyPrefs
+    """Runs when plugin is registered."""
+    if not uistate:
+        # Avoid loading GUI elements in CLI mode.
+        return
+
+    from gi.repository.Gdk import Screen
+    from gi.repository.Gtk import (
+        CssProvider,
+        Settings,
+        STYLE_PROVIDER_PRIORITY_APPLICATION,
+        StyleContext,
+    )
+
+    from gramps.gen.config import config
+    from gramps.gui.configure import GrampsPreferences
+
+    sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+    from themes import (
+        KEY_FIXED_SCROLL,
+        KEY_FONT,
+        MyPrefs,
+        apply_theme_settings,
+        register_config_defaults,
+        setup_system_darkmode_listener,
+    )
+
+    register_config_defaults()
+
+    gtksettings = Settings.get_default()
+    if gtksettings and not hasattr(GrampsPreferences, "def_dark"):
+        GrampsPreferences.def_dark = gtksettings.get_property(
+            "gtk-application-prefer-dark-theme"
+        )
+        GrampsPreferences.def_theme = gtksettings.get_property("gtk-theme-name")
+        GrampsPreferences.def_font = gtksettings.get_property("gtk-font-name")
+
+    def _apply_patch():
         GrampsPreferences.__init__ = MyPrefs.__init__
-        gtksettings = Settings.get_default()
-        # save default (original) settings for later, if not already done
-        if not hasattr(GrampsPreferences, 'def_dark'):
-            GrampsPreferences.def_dark = gtksettings.get_property(
-                'gtk-application-prefer-dark-theme')
-            GrampsPreferences.def_theme = gtksettings.get_property(
-                'gtk_theme_name')
-            GrampsPreferences.def_font = gtksettings.get_property(
-                'gtk-font-name')
-        # establish config Settings and load current prefs if available
-        config.register('preferences.theme-dark-variant', '')
-        value = config.get('preferences.theme-dark-variant')
-        if value:
-            gtksettings.set_property('gtk-application-prefer-dark-theme',
-                                     value == 'True')
-        config.register('preferences.theme', '')
-        value = config.get('preferences.theme')
-        if value:
-            gtksettings.set_property('gtk_theme_name', value)
-        config.register('preferences.font', '')
-        value = config.get('preferences.font')
-        if value:
-            gtksettings.set_property('gtk-font-name', value)
-        # config.register('interface.toolbar-text', False)
-        # value = config.get('interface.toolbar-text')
-        # toolbar = uistate.uimanager.get_widget('ToolBar')
-        # toolbar.set_style(ToolbarStyle.BOTH if value else ToolbarStyle.ICONS)
-        config.register('interface.fixed-scrollbar', '0')
-        value = config.get('interface.fixed-scrollbar')
-        if value:
-            gtksettings.set_property('gtk-primary-button-warps-slider',
-                                      not value)
-            MyPrefs.provider = CssProvider()
-            css = ('* { -GtkScrollbar-has-backward-stepper: 1; '
-                   '-GtkScrollbar-has-forward-stepper: 1; }')
-            MyPrefs.provider.load_from_data(css.encode('utf8'))
-            StyleContext.add_provider_for_screen(
-                Screen.get_default(), MyPrefs.provider,
-                STYLE_PROVIDER_PRIORITY_APPLICATION)
+        apply_theme_settings()
+
+        if gtksettings:
+            font_value = config.get(KEY_FONT)
+            if font_value:
+                gtksettings.set_property("gtk-font-name", font_value)
+
+            fixed_scroll = _bool_from_value(config.get(KEY_FIXED_SCROLL), False)
+            if fixed_scroll:
+                gtksettings.set_property("gtk-primary-button-warps-slider", False)
+                MyPrefs.provider = CssProvider()
+                css = (
+                    "* { -GtkScrollbar-has-backward-stepper: 1; "
+                    "-GtkScrollbar-has-forward-stepper: 1; }"
+                )
+                MyPrefs.provider.load_from_data(css.encode("utf8"))
+                StyleContext.add_provider_for_screen(
+                    Screen.get_default(),
+                    MyPrefs.provider,
+                    STYLE_PROVIDER_PRIORITY_APPLICATION,
+                )
+        return False
+
+    _apply_patch()
+    GLib.idle_add(_apply_patch)
+    GLib.timeout_add(1000, _apply_patch)
+    setup_system_darkmode_listener()
