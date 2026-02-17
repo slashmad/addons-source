@@ -72,27 +72,55 @@ ngettext = _trans.ngettext
 
 
 LOG = logging.getLogger("grampswebsync")
+PASSWORD_METADATA_KEY = "grampswebsync.credentials"
 
 
-def get_password(service: str, username: str) -> str | None:
-    """If keyring is installed, return the user's password or None."""
-    LOG.debug("Retrieving password for user %s", username)
-    try:
-        import keyring
-    except ImportError:
-        LOG.warning("Keyring is not installed, cannot retrieve password.")
+def _credential_key(service: str, username: str) -> str:
+    return f"{service}\n{username}"
+
+
+def get_password_from_db(db, service: str, username: str) -> str | None:
+    """Return stored password from Gramps database metadata."""
+    if not service or not username:
         return None
-    return keyring.get_password(service, username)
-
-
-def set_password(service: str, username: str, password: str) -> None:
-    """If keyring is installed, store the user's password."""
-    try:
-        import keyring
-    except ImportError:
+    if not hasattr(db, "_get_metadata"):
+        LOG.warning(
+            "Database backend does not support metadata getter; cannot retrieve password."
+        )
         return None
-    LOG.debug("Storing password for user %s", username)
-    keyring.set_password(service, username, password)
+    try:
+        store = db._get_metadata(PASSWORD_METADATA_KEY, {})
+    except Exception as exc:
+        LOG.warning("Could not read password metadata: %s", exc)
+        return None
+    if not isinstance(store, dict):
+        return None
+    value = store.get(_credential_key(service, username))
+    return value if isinstance(value, str) else None
+
+
+def set_password_in_db(db, service: str, username: str, password: str) -> None:
+    """Store password in Gramps database metadata."""
+    if not service or not username:
+        return
+    if not hasattr(db, "_get_metadata") or not hasattr(db, "_set_metadata"):
+        LOG.warning(
+            "Database backend does not support metadata storage; cannot save password."
+        )
+        return
+    try:
+        store = db._get_metadata(PASSWORD_METADATA_KEY, {})
+        if not isinstance(store, dict):
+            store = {}
+        key = _credential_key(service, username)
+        if password:
+            store[key] = password
+        else:
+            store.pop(key, None)
+        db._set_metadata(PASSWORD_METADATA_KEY, store)
+        LOG.debug("Stored password in DB metadata for user %s", username)
+    except Exception as exc:
+        LOG.warning("Could not store password metadata: %s", exc)
 
 
 class GrampsWebSyncTool(BatchTool, ManagedWindow):
@@ -476,7 +504,7 @@ class GrampsWebSyncTool(BatchTool, ManagedWindow):
         username = self.config.get("credentials.username")
         if not url or not username:
             return None
-        return get_password(url, username)
+        return get_password_from_db(self.dbstate.db, url, username)
 
     def handle_error(self, message):
         """Handle an error message during sync."""
@@ -594,7 +622,7 @@ class GrampsWebSyncTool(BatchTool, ManagedWindow):
             self.config.set("credentials.timestamp", 0)
         self.config.set("credentials.url", url)
         self.config.set("credentials.username", username)
-        set_password(url, username, password)
+        set_password_in_db(self.dbstate.db, url, username, password)
         self.config.save()
 
     def sanitize_url(self, url: str) -> str | None:

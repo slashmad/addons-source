@@ -1,3 +1,14 @@
+> [!IMPORTANT]
+> **Local Patch Block (2026-02-17)**
+>
+> This fork currently includes targeted addon patches for Linux/Flatpak usage:
+> - **Themes** (`themesprefs-darkmode-fix`): added robust `Auto` / `Dark` / `Light` behavior for Gramps 6.0 so theme switching works reliably on modern GNOME/Fedora setups.
+> - **GrampsWebSync**: changed credential persistence to store password in local Gramps DB metadata (SQLite `metadata` table via Gramps DB API) instead of Python `keyring`, because `keyring` is not reliably available in the Flatpak runtime used by Gramps.
+>
+> Why:
+> - Ensure dark mode behavior is predictable across Linux desktop environments.
+> - Ensure Gramps Web Sync password persists between runs in Flatpak-based Gramps installs.
+
 addons-source [![Build Status](https://travis-ci.org/gramps-project/addons-source.svg?branch=master)](https://travis-ci.org/gramps-project/addons-source) <a href="https://hosted.weblate.org/engage/gramps-project/">
 <img src="https://hosted.weblate.org/widget/gramps-project/addons/svg-badge.svg" alt="Translation status" />
 </a>
@@ -85,5 +96,4 @@ each supported language.
 * **as-needed** [no other parameters] - Builds/lists/cleans only out of date
 addons in one step.  It also rebuilds the template.pot file so it is also
 up to date.
-
 
