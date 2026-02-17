@@ -470,6 +470,9 @@ class GrampsWebSyncTool(BatchTool, ManagedWindow):
         except HandleError:
             self.handle_error(_("Error accessing media object."))
             return False
+        if obj.get_path().startswith(("http://", "https://")):
+            LOG.debug("Skipping download for URL-based media %s", obj.gramps_id)
+            return True
         path = media_path_full(self.db1, obj.get_path())
         try:
             return self.api.download_media_file(handle=handle, path=path)
@@ -495,6 +498,9 @@ class GrampsWebSyncTool(BatchTool, ManagedWindow):
         except HandleError:
             self.handle_error(_("Error accessing media object."))
             return
+        if obj.get_path().startswith(("http://", "https://")):
+            LOG.debug("Skipping upload for URL-based media %s", obj.gramps_id)
+            return True
         path = media_path_full(self.db1, obj.get_path())
         return self.api.upload_media_file(handle=handle, path=path)
 
@@ -713,6 +719,7 @@ class GrampsWebSyncTool(BatchTool, ManagedWindow):
         return [
             (media.gramps_id, media.handle)
             for media in self.db1.iter_media()
+            if not media.get_path().startswith(("http://", "https://"))
             if not os.path.exists(media_path_full(self.db1, media.get_path()))
         ]
 

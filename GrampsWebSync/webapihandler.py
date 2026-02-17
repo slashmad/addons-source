@@ -346,8 +346,29 @@ class WebApiHandler:
         try:
             with open(path, "rb") as f:
                 self._upload_file(url=url, fobj=f)
+        except OSError as exc:
+            LOG.warning("Could not open local media file for upload (%s): %s", path, exc)
+            return False
         except HTTPError as exc:
             if exc.code == 409:
+                # For uploadmissing=1, this can happen when the file already
+                # exists on the server with the expected checksum.
+                try:
+                    body = exc.read().decode("utf-8", errors="replace")
+                    payload = json.loads(body)
+                    message = (
+                        payload.get("error", {}).get("message", "")
+                        if isinstance(payload, dict)
+                        else ""
+                    )
+                except Exception:
+                    message = ""
+                if "same checksum as the existing media object" in message:
+                    LOG.debug(
+                        "Upload for media handle %s skipped: file already present on remote.",
+                        handle,
+                    )
+                    return True
                 return False
             raise
         return True
