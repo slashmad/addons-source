@@ -62,6 +62,11 @@ from gramps.gui.managedwindow import ManagedWindow
 from gramps.gui.plug.tool import BatchTool, ToolOptions
 from webapihandler import WebApiHandler, transaction_to_json
 
+try:
+    import keyring
+except Exception:
+    keyring = None
+
 assert glocale is not None  # for type checker
 try:
     _trans = glocale.get_addon_translator(__file__)
@@ -72,55 +77,51 @@ ngettext = _trans.ngettext
 
 
 LOG = logging.getLogger("grampswebsync")
-PASSWORD_METADATA_KEY = "grampswebsync.credentials"
+KEYRING_SERVICE_PREFIX = "GrampsWebSync"
 
 
-def _credential_key(service: str, username: str) -> str:
-    return f"{service}\n{username}"
+def _keyring_service(url: str) -> str:
+    parsed = urlparse(url or "")
+    host = parsed.netloc or parsed.path or "unknown"
+    return f"{KEYRING_SERVICE_PREFIX}:{host.lower()}"
 
 
-def get_password_from_db(db, service: str, username: str) -> str | None:
-    """Return stored password from Gramps database metadata."""
+def get_password_secure(db, service: str, username: str) -> str | None:
+    """Read password from keyring only."""
+    del db  # Unused by design: no metadata fallback.
     if not service or not username:
         return None
-    if not hasattr(db, "_get_metadata"):
-        LOG.warning(
-            "Database backend does not support metadata getter; cannot retrieve password."
-        )
+
+    if keyring is None:
         return None
+
     try:
-        store = db._get_metadata(PASSWORD_METADATA_KEY, {})
+        password = keyring.get_password(service, username)
+        return password or None
     except Exception as exc:
-        LOG.warning("Could not read password metadata: %s", exc)
+        LOG.warning("Could not read password from keyring: %s", exc)
         return None
-    if not isinstance(store, dict):
-        return None
-    value = store.get(_credential_key(service, username))
-    return value if isinstance(value, str) else None
 
 
-def set_password_in_db(db, service: str, username: str, password: str) -> None:
-    """Store password in Gramps database metadata."""
+def set_password_secure(db, service: str, username: str, password: str) -> None:
+    """Write password to keyring only."""
+    del db  # Unused by design: no metadata fallback.
     if not service or not username:
         return
-    if not hasattr(db, "_get_metadata") or not hasattr(db, "_set_metadata"):
-        LOG.warning(
-            "Database backend does not support metadata storage; cannot save password."
-        )
+    if keyring is None:
         return
+
     try:
-        store = db._get_metadata(PASSWORD_METADATA_KEY, {})
-        if not isinstance(store, dict):
-            store = {}
-        key = _credential_key(service, username)
         if password:
-            store[key] = password
+            keyring.set_password(service, username, password)
         else:
-            store.pop(key, None)
-        db._set_metadata(PASSWORD_METADATA_KEY, store)
-        LOG.debug("Stored password in DB metadata for user %s", username)
+            try:
+                keyring.delete_password(service, username)
+            except Exception:
+                pass
     except Exception as exc:
-        LOG.warning("Could not store password metadata: %s", exc)
+        LOG.warning("Could not store password in keyring: %s", exc)
+        return
 
 
 class GrampsWebSyncTool(BatchTool, ManagedWindow):
@@ -510,7 +511,8 @@ class GrampsWebSyncTool(BatchTool, ManagedWindow):
         username = self.config.get("credentials.username")
         if not url or not username:
             return None
-        return get_password_from_db(self.dbstate.db, url, username)
+        service = _keyring_service(url)
+        return get_password_secure(self.dbstate.db, service, username)
 
     def handle_error(self, message):
         """Handle an error message during sync."""
@@ -628,7 +630,7 @@ class GrampsWebSyncTool(BatchTool, ManagedWindow):
             self.config.set("credentials.timestamp", 0)
         self.config.set("credentials.url", url)
         self.config.set("credentials.username", username)
-        set_password_in_db(self.dbstate.db, url, username, password)
+        set_password_secure(self.dbstate.db, _keyring_service(url), username, password)
         self.config.save()
 
     def sanitize_url(self, url: str) -> str | None:
@@ -656,10 +658,13 @@ class GrampsWebSyncTool(BatchTool, ManagedWindow):
 
     def get_credentials(self):
         """Get a tuple of URL, username, and password."""
+        password = self.loginpage.password.get_text()
+        if not password:
+            password = self.get_password() or ""
         return (
             self.config.get("credentials.url"),
             self.config.get("credentials.username"),
-            self.loginpage.password.get_text(),
+            password,
         )
 
     def commit_all_actions(self, actions: Actions) -> None:

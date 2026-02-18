@@ -1,7 +1,7 @@
 #
 # Gramps - a GTK+/GNOME based genealogy program
 #
-# Copyright (C) 2021-2024 David Straub
+# Copyright (C) 2026  slashmad
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,26 +17,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-# from gramps.gen.plug._pluginreg import *
-# from gramps.gen.const import GRAMPS_LOCALE as glocale
-# _ = glocale.translation.gettext
-
-"""GRAMPS registration file."""
 
 register(
     TOOL,
-    id="gramps_web_sync",
-    name=_("Gramps Web Sync"),
-    description=_("Synchronizes a local database with a Gramps Web instance."),
-    version = '1.3.10',
+    id="riksarkivetmediafetch",
+    name=_("Fetch Riksarkivet citation media"),
+    description=_(
+        "Download and attach media for citations that contain "
+        "Riksarkivet bildvisning links."
+    ),
+    version="0.1.1",
     gramps_target_version="6.0",
     status=STABLE,
-    fname="grampswebsync.py",
-    authors=["David Straub"],
-    authors_email=["straub@protonmail.com"],
-    category=TOOL_DBPROC,
-    toolclass="GrampsWebSyncTool",
-    optionclass="GrampsWebSyncOptions",
+    fname="RiksarkivetMediaFetch.py",
+    authors=["slashmad"],
+    authors_email=[""],
+    category=TOOL_UTILS,
+    toolclass="RiksarkivetMediaFetchTool",
+    optionclass="RiksarkivetMediaFetchOptions",
     tool_modes=[TOOL_MODE_GUI],
-    help_url="Addon:Gramps_Web_Sync",
+    help_url="",
 )

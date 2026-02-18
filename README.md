@@ -1,17 +1,24 @@
 > [!IMPORTANT]
-> **Local Patch Block (2026-02-17)**
+> **Local Patch Block (2026-02-18)**
 >
 > This fork currently includes targeted addon patches for Linux/Flatpak usage:
-> - **Themes** (`themesprefs-darkmode-fix`): added robust `Auto` / `Dark` / `Light` behavior for Gramps 6.0 so theme switching works reliably on modern GNOME/Fedora setups.
-> - **GrampsWebSync**: changed credential persistence to store password in local Gramps DB metadata (SQLite `metadata` table via Gramps DB API) instead of Python `keyring`, because `keyring` is not reliably available in the Flatpak runtime used by Gramps.
-> - **GrampsWebSync**: hardened media transfer logic for shared files / subfolder layouts:
->   - skip URL-based media paths for local file-missing checks and upload/download
->   - treat `uploadmissing=1` HTTP `409` “same checksum already exists” as success (no-op) to avoid false sync errors when multiple media objects reference the same file.
+> - **Themes**: fixed Gramps 6.0 theme switching behavior for reliable `Auto` / `Dark` / `Light` operation on GNOME/Fedora.
+> - **GrampsWebSync**:
+>   - switched credential storage to **Python keyring only** (no DB metadata fallback).
+>   - password persistence now depends on keyring availability in the runtime.
+>   - hardened media transfer logic for shared files/subfolder layouts:
+>     - skip URL-based media paths for local file-missing checks and upload/download
+>     - treat `uploadmissing=1` HTTP `409` “same checksum already exists” as success (no-op) to avoid false sync errors when multiple media objects reference the same file.
+> - **RiksarkivetMediaFetch** (new local addon):
+>   - batch fetches citation media from `sok.riksarkivet.se/bildvisning/...`
+>   - supports protected pages with login flow and session handling
+>   - supports cancel/abort of long-running fetch operations
+>   - stores optional login credentials in keyring when available.
 >
 > Why:
-> - Ensure dark mode behavior is predictable across Linux desktop environments.
-> - Ensure Gramps Web Sync password persists between runs in Flatpak-based Gramps installs.
-> - Ensure media sync remains stable when organizing files in media subfolders and reusing identical files across multiple references.
+> - Keep dark mode behavior predictable across Linux desktop environments.
+> - Keep WebSync credential handling secure and consistent via system keyring.
+> - Add a working workflow for large citation media imports from Riksarkivet.
 
 addons-source [![Build Status](https://travis-ci.org/gramps-project/addons-source.svg?branch=master)](https://travis-ci.org/gramps-project/addons-source) <a href="https://hosted.weblate.org/engage/gramps-project/">
 <img src="https://hosted.weblate.org/widget/gramps-project/addons/svg-badge.svg" alt="Translation status" />
