@@ -5,7 +5,7 @@
 > - **Themes**: fixed Gramps 6.0 theme switching behavior for reliable `Auto` / `Dark` / `Light` operation on GNOME/Fedora.
 > - **GrampsWebSync**:
 >   - switched credential storage to **Python keyring only** (no DB metadata fallback).
->   - password persistence now depends on keyring availability in the runtime.
+>   - password persistence requires `keyring`; if unavailable, passwords are not persisted.
 >   - hardened media transfer logic for shared files/subfolder layouts:
 >     - skip URL-based media paths for local file-missing checks and upload/download
 >     - treat `uploadmissing=1` HTTP `409` “same checksum already exists” as success (no-op) to avoid false sync errors when multiple media objects reference the same file.
@@ -13,7 +13,7 @@
 >   - batch fetches citation media from `sok.riksarkivet.se/bildvisning/...`
 >   - supports protected pages with login flow and session handling
 >   - supports cancel/abort of long-running fetch operations
->   - stores optional login credentials in keyring when available.
+>   - optional login save uses keyring only (no plaintext/metadata fallback).
 >
 > Why:
 > - Keep dark mode behavior predictable across Linux desktop environments.

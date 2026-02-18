@@ -11,6 +11,14 @@ Third-party Gramps tool addon for Gramps 6.0.
   - `media/citations`
 - Reuses existing media by checksum (optional).
 - Attaches media to citations as normal `MediaRef` links.
+- Supports optional login flow for protected pages.
+- Supports progress + cancel for long batch runs.
+
+## Credential handling
+
+- Login credentials can be saved with Python `keyring`.
+- No plaintext or DB metadata password fallback is used.
+- If `keyring` is unavailable, credentials must be entered per run.
 
 ## Notes
 
